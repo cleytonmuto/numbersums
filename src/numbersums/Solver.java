@@ -9,12 +9,11 @@ public class Solver {
     }
     
     private void run() {
+    	long before = System.currentTimeMillis();
         ArrayList<String> lines = new ArrayList<>();
         FileUtils.load("resources/input.txt", lines);
-        for (String line : lines) {
-            System.out.println(line);
-        }
-        final int N = lines.size() - 2;
+        final int N = lines.size() - 1;
+        System.out.println("N = " + N);
         int[][] matrix = new int[N][N];
         boolean[][] usedInRows = new boolean[N][N];
         boolean[][] usedInColumns = new boolean[N][N];
@@ -33,30 +32,21 @@ public class Solver {
         for ( int i = 0; i < N; i++ ) {
             columnSum[ i ] = Integer.valueOf(token[ i ]);
         }
+        ArrayList<ArrayList<boolean[]>> rowCombinations = new ArrayList<>();
         for (int i = 0; i < N; i++) {
-            System.out.println( "Possible solutions for line " + i + ":" );
             ArrayList<boolean[]> combinations = solve(matrix[ i ], rowSum[ i ]);
             for ( int k = 0; k < combinations.size(); k++ ) {
                 boolean[] combination = combinations.get(k);
-                boolean atLeastOne = false;
                 for ( int j = 0; j < N; j++) {
                     if (combination[j]) {
-                        if (atLeastOne) {
-                            System.out.print(" + ");
-                        }
-                        System.out.print("a[ " + j + " ]");
                         usedInRows[ i ][ j ] = true;
-                        atLeastOne = true;
                     }
                 }
-                if (atLeastOne) {
-                    System.out.println();
-                }
             }
+            rowCombinations.add(combinations);
         }
-        
+        ArrayList<ArrayList<boolean[]>> columnCombinations = new ArrayList<>();
         for (int j = 0; j < N; j++) {
-            System.out.println( "Possible solutions for column " + j + ":" );
             int[] column = new int[ N ];
             for( int i = 0; i < N; i++) {
                 column[ i ] = matrix[ i ][ j ];
@@ -64,50 +54,90 @@ public class Solver {
             ArrayList<boolean[]> combinations = solve(column, columnSum[ j ]);
             for ( int k = 0; k < combinations.size(); k++ ) {
                 boolean[] combination = combinations.get(k);
-                boolean atLeastOne = false;
                 for ( int i = 0; i < N; i++) {
                     if (combination[i]) {
-                        if (atLeastOne) {
-                            System.out.print(" + ");
-                        }
-                        System.out.print("a[ " + i + " ]");
                         usedInColumns[ i ][ j ] = true;
-                        atLeastOne = true;
                     }
                 }
-                if (atLeastOne) {
-                    System.out.println();
-                }
             }
+            columnCombinations.add(combinations);
         }
+        boolean[][] used = new boolean[ N ][ N ];
         for ( int i = 0; i < N; i++ ) {
             for ( int j = 0; j < N; j++ ) {
-                if ( j > 0 ) {
-                    System.out.print( " ");
-                }
-                System.out.print(usedInRows[ i ][ j ] ? "O" : "X");
+                used[ i ][ j ] = usedInRows[ i ][ j ] && usedInColumns[ i ][ j ];
             }
-            System.out.println();
         }
-        System.out.println();
-        for ( int i = 0; i < N; i++ ) {
-            for ( int j = 0; j < N; j++ ) {
-                if ( j > 0 ) {
-                    System.out.print( " ");
-                }
-                System.out.print(usedInColumns[ i ][ j ] ? "O" : "X");
-            }
-            System.out.println();
+        for (int i = 0; i < rowCombinations.size(); i++) { // for each row
+        	ArrayList<boolean[]> combinations = rowCombinations.get( i );
+        	for (int k = combinations.size() - 1; k >= 0; k--) { // for each combination of that row
+        		boolean[] sequence = combinations.get( k );
+        		boolean removeThisSequence = false;
+        		for (int j = 0; j < N; j++) {
+        			if (!used[ i ][ j ] && sequence[ j ]) {
+        				removeThisSequence = true;
+        			}
+        		}
+        		if (removeThisSequence) {
+        			combinations.remove(k);
+        		}
+        	}
         }
-        System.out.println();
-        for ( int i = 0; i < N; i++ ) {
-            for ( int j = 0; j < N; j++ ) {
-                if ( j > 0 ) {
-                    System.out.print( " ");
-                }
-                System.out.print((usedInRows[ i ][ j ] && usedInColumns[ i ][ j ])? "O" : "X");
-            }
-            System.out.println();
+        for (int j = 0; j < columnCombinations.size(); j++) { // for each row
+        	ArrayList<boolean[]> combinations = columnCombinations.get( j );
+        	for (int k = combinations.size() - 1; k >= 0; k--) { // for each combination of that row
+        		boolean[] sequence = combinations.get( k );
+        		boolean removeThisSequence = false;
+        		for (int i = 0; i < N; i++) {
+        			if (!used[ i ][ j ] && sequence[ i ]) {
+        				removeThisSequence = true;
+        			}
+        		}
+        		if (removeThisSequence) {
+        			combinations.remove(k);
+        		}
+        	}
+        }
+        ArrayList<String> rowCandidates = new ArrayList<String>();
+        ArrayList<String> columnCandidates = new ArrayList<String>();
+        if (N == 6) {
+	        rowCandidates = SolveFor6.solveRows(rowCombinations, matrix, columnSum);
+	        columnCandidates = SolveFor6.solveColumns(columnCombinations, matrix, rowSum);
+        }
+        if (N == 7) {
+	        rowCandidates = SolveFor7.solveRows(rowCombinations, matrix, columnSum);
+	        columnCandidates = SolveFor7.solveColumns(columnCombinations, matrix, rowSum);
+        }
+        if (N == 8) {
+	        rowCandidates = SolveFor8.solveRows(rowCombinations, matrix, columnSum);
+	        columnCandidates = SolveFor8.solveColumns(columnCombinations, matrix, rowSum);
+        }
+        printSolution(rowCandidates, columnCandidates, N);
+        long after = System.currentTimeMillis();
+        double time = (double) (after - before) / 1000.0;
+        System.out.println("elapsed time = " + time);
+    }
+    
+    private void printSolution(ArrayList<String> rowCandidates, ArrayList<String> columnCandidates, int N) {
+    	System.out.println("rowCandidates = " + rowCandidates.size());
+        System.out.println("columnCandidates = " + columnCandidates.size());
+        for (int i = 0; i < rowCandidates.size(); i++) {
+        	for (int j = 0; j < columnCandidates.size(); j++) {
+        		if (rowCandidates.get(i).equals(columnCandidates.get(j))) {
+        			String solution = rowCandidates.get(i);
+        			int count = 0;
+        			for (int x = 0; x < N; x++) {
+        				for (int y = 0; y < N; y++) {
+        					if (y > 0) {
+        						System.out.print(" ");
+        					}
+        					System.out.print(solution.charAt(count++));
+        				}
+        				System.out.println();
+        			}
+        		}
+        	}
+        	System.out.println();
         }
     }
     
@@ -115,7 +145,6 @@ public class Solver {
         ArrayList<boolean[]> combination = new ArrayList<>();
         for( int i = 0; i < a.length; i++ ) {
             if ( a[ i ] == target ) {
-                // System.out.println( "a[ " + i + " ]");
                 boolean[] array = new boolean[ a.length ];
                 array[ i ] = true;
                 combination.add(array);
@@ -125,7 +154,6 @@ public class Solver {
             for ( int i = 0; i < a.length - 1; i++ ) {
                 for ( int j = i + 1; j < a.length; j++ ) {
                     if ( a[ i ] + a[ j ] == target ) {
-                        // System.out.println( "a[ " + i + " ] + a[ " + j + " ]" );
                         boolean[] array = new boolean[ a.length ];
                         array[ i ] = array[ j ] = true;
                         combination.add(array);
@@ -138,7 +166,6 @@ public class Solver {
                 for ( int j = i + 1; j < a.length - 1; j++ ) {
                     for ( int k = j + 1; k < a.length; k++ ) {
                         if ( a[ i ] + a[ j ] + a[ k ] == target ) {
-                            // System.out.println( "a[ " + i + " ] + a[ " + j + " ] + a[ " + k + " ]" );
                             boolean[] array = new boolean[ a.length ];
                             array[ i ] = array[ j ] = array[ k ] = true;
                             combination.add(array);
@@ -153,7 +180,6 @@ public class Solver {
                     for ( int k = j + 1; k < a.length - 1; k++ ) {
                         for ( int x = k + 1; x < a.length; x++ ) {
                             if ( a[ i ] + a[ j ] + a[ k ] + a[ x ] == target ) {
-                                // System.out.println( "a[ " + i + " ] + a[ " + j + " ] + a[ " + k + " ] + a[ " + x + "]" );
                                 boolean[] array = new boolean[ a.length ];
                                 array[ i ] = array[ j ] = array[ k ] = array[ x ] = true;
                                 combination.add(array);
@@ -170,7 +196,6 @@ public class Solver {
                         for ( int x = k + 1; x < a.length - 1; x++ ) {
                             for ( int y = x + 1; y < a.length; y++ ) {
                                 if ( a[ i ] + a[ j ] + a[ k ] + a[ x ] + a[ y ] == target ) {
-                                    // System.out.println( "a[ " + i + " ] + a[ " + j + " ] + a[ " + k + " ] + a[ " + x + "] + a[ " + y + "]" );
                                     boolean[] array = new boolean[ a.length ];
                                     array[ i ] = array[ j ] = array[ k ] = array[ x ] = array[ y ] = true;
                                     combination.add(array);
@@ -189,7 +214,6 @@ public class Solver {
                             for ( int y = x + 1; y < a.length - 1; y++ ) {
                                 for ( int z = y + 1; z < a.length; z++ ) {
                                     if ( a[ i ] + a[ j ] + a[ k ] + a[ x ] + a[ y ] + a[ z ] == target ) {
-                                        // System.out.println( "a[ " + i + " ] + a[ " + j + " ] + a[ " + k + " ] + a[ " + x + "] + a[ " + y + "] + a[ " + z + " ]" );
                                         boolean[] array = new boolean[ a.length ];
                                         array[ i ] = array[ j ] = array[ k ] = array[ x ] = array[ y ] = array[ z ] = true;
                                         combination.add(array);
@@ -222,6 +246,29 @@ public class Solver {
                 }
             }
         }
+        if (a.length >= 8) {   
+            for ( int i = 0; i < a.length - 7; i++ ) {
+                for ( int j = i + 1; j < a.length - 6; j++ ) {
+                    for ( int k = j + 1; k < a.length - 5; k++ ) {
+                        for ( int x = k + 1; x < a.length - 4; x++ ) {
+                            for ( int y = x + 1; y < a.length - 3; y++ ) {
+                                for ( int z = y + 1; z < a.length - 2; z++ ) {
+                                    for ( int w = z + 1; w < a.length - 1; w++ ) {
+                                    	for ( int v = w + 1; v < a.length; v++ ) {
+	                                        if ( a[ i ] + a[ j ] + a[ k ] + a[ x ] + a[ y ] + a[ z ] + a[ w ] + a[ v ] == target ) {
+	                                            boolean[] array = new boolean[ a.length ];
+	                                            array[ i ] = array[ j ] = array[ k ] = array[ x ] = array[ y ] = array[ z ] = array[ w ] = array[ v ] = true;
+	                                            combination.add(array);
+	                                        }
+                                    	}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         return combination;
     }
     
@@ -230,3 +277,4 @@ public class Solver {
     }
 
 }
+
